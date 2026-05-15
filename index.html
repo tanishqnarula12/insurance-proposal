@@ -630,7 +630,7 @@ async function handlePDFUpload(event) {
 
   const btn = document.getElementById('pdf-upload-btn');
   const originalText = btn.innerHTML;
-  btn.innerHTML = '⏳ Parsing...';
+  btn.innerHTML = '⏳ AI Parsing...';
   btn.style.opacity = '0.7';
   btn.disabled = true;
 
@@ -650,73 +650,111 @@ async function handlePDFUpload(event) {
       fullText += pageText + ' ';
     }
 
-    // Clean text for better matching
     const cleanText = fullText.replace(/\s+/g, ' ');
 
+    // Call Vercel Serverless Function to extract details with Gemini API
+    const response = await fetch('/api/parse-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: cleanText })
+    });
+
+    if (!response.ok) {
+       const errData = await response.json();
+       throw new Error(errData.error || 'Failed to parse PDF with AI');
+    }
+
+    const data = await response.json();
     let fieldsFilled = 0;
 
-    // Proposer Name Match
-    const proposerMatch = cleanText.match(/(?:Name of Proposer|Proposer Name|Insured Name|Name of Insured|Customer Name)[\s:]+([A-Za-z\s]{3,40})/i);
-    if (proposerMatch && proposerMatch[1]) {
-        document.getElementById('proposer-name').value = proposerMatch[1].trim();
-        const clientNameInput = document.querySelector('.client-card input[data-f="name"]');
-        if (clientNameInput && !clientNameInput.value) clientNameInput.value = proposerMatch[1].trim();
-        fieldsFilled++;
+    // 1. Proposer
+    if (data.proposerName) {
+       document.getElementById('proposer-name').value = data.proposerName;
+       fieldsFilled++;
     }
-    
-    // DOB Match
-    const dobMatch = cleanText.match(/(?:Date of Birth|DOB)[\s:]*(\d{2}[-/.]\d{2}[-/.]\d{4})/i);
-    if (dobMatch) {
-       const c = document.querySelector('.client-card input[data-f="dob"]');
-       if (c) {
-          const dStr = dobMatch[1].replace(/\./g, '/').replace(/-/g, '/');
-          const parts = dStr.split('/');
-          if (parts.length === 3) {
-             c.value = `${parts[2]}-${parts[1]}-${parts[0]}`;
-             fieldsFilled++;
-          }
+
+    // 2. Clients
+    if (data.clients && data.clients.length > 0) {
+       // Clear existing clients first
+       document.getElementById('clients-wrap').innerHTML = '';
+       clientCount = 0;
+       data.clients.forEach(c => {
+         addClient();
+         const clientCard = document.getElementById('c-' + clientCount);
+         if(c.name) { clientCard.querySelector('[data-f="name"]').value = c.name; fieldsFilled++; }
+         if(c.dob) { clientCard.querySelector('[data-f="dob"]').value = c.dob; fieldsFilled++; }
+         if(c.tobacco) { clientCard.querySelector('[data-f="tobacco"]').value = c.tobacco; fieldsFilled++; }
+         if(c.alcohol) { clientCard.querySelector('[data-f="alcohol"]').value = c.alcohol; fieldsFilled++; }
+         if(c.ped) { clientCard.querySelector('[data-f="ped"]').value = c.ped; fieldsFilled++; }
+       });
+    }
+
+    // 3. Medical
+    if (data.medical && (data.medical.basePolicies.length > 0 || data.medical.topupPolicies.length > 0)) {
+       if (!selectedTypes.medical) toggleType('medical');
+       
+       if (data.medical.isPort) {
+         document.getElementById('port-toggle').checked = true;
+         togglePort(true);
+         if (data.medical.portDate) document.getElementById('port-date').value = data.medical.portDate;
        }
-    }
-    
-    // Premium Match
-    const premiumMatch = cleanText.match(/(?:Gross Premium|Total Premium|Premium Amount|Premium|Total Payable)[\s:]*(?:Rs\.?|INR|₹)?[\s]*([\d,]+(?:\.\d{2})?)/i);
-    if (premiumMatch) {
-       const inputs = document.querySelectorAll('input[data-f="premium"]');
-       if(inputs.length > 0) {
-           inputs[0].value = premiumMatch[1].trim();
-           fieldsFilled++;
+
+       if (data.medical.basePolicies && data.medical.basePolicies.length > 0) {
+         document.getElementById('base-policies').innerHTML = '';
+         baseCount = 0;
+         data.medical.basePolicies.forEach(p => {
+           addPolicy('base');
+           const row = document.getElementById('base-' + baseCount);
+           if(p.name) { row.querySelector('[data-f="name"]').value = p.name; fieldsFilled++; }
+           if(p.sum) { row.querySelector('[data-f="sum"]').value = p.sum; fieldsFilled++; }
+           if(p.premium) { row.querySelector('[data-f="premium"]').value = p.premium; fieldsFilled++; }
+           if(p.riders) { row.querySelector('[data-f="riders"]').value = p.riders; fieldsFilled++; }
+         });
        }
-    }
-    
-    // Sum Assured Match
-    const sumMatch = cleanText.match(/(?:Sum Assured|Base Cover|Coverage)[\s:]*(?:Rs\.?|INR|₹)?[\s]*([\d,]+(?:\.\d{2})?)/i);
-    if (sumMatch) {
-       const inputs = document.querySelectorAll('input[data-f="sum"]');
-       if(inputs.length > 0) {
-           inputs[0].value = sumMatch[1].trim();
-           fieldsFilled++;
+       if (data.medical.topupPolicies && data.medical.topupPolicies.length > 0) {
+         document.getElementById('topup-policies').innerHTML = '';
+         topupCount = 0;
+         data.medical.topupPolicies.forEach(p => {
+           addPolicy('topup');
+           const row = document.getElementById('topup-' + topupCount);
+           if(p.deductible) { row.querySelector('[data-f="deductible"]').value = p.deductible; fieldsFilled++; }
+           if(p.sum) { row.querySelector('[data-f="sum"]').value = p.sum; fieldsFilled++; }
+           if(p.premium) { row.querySelector('[data-f="premium"]').value = p.premium; fieldsFilled++; }
+         });
        }
     }
 
-    // Policy Name Match
-    const policyMatch = cleanText.match(/(?:Product Name|Plan Name|Policy Name)[\s:]+([A-Za-z0-9\s\-]+(Policy|Plan|Protect|Health|Life|Insurance))/i);
-    if (policyMatch && policyMatch[1]) {
-       const policyNameInput = document.querySelector('.policy-row input[data-f="name"]');
-       if (policyNameInput) {
-           policyNameInput.value = policyMatch[1].trim();
-           fieldsFilled++;
-       }
+    // 4. Term
+    if (data.term && data.term.groups && data.term.groups.length > 0) {
+       if (!selectedTypes.term) toggleType('term');
+       document.getElementById('term-groups').innerHTML = '';
+       insuredGroupCount = 0;
+       termPolicyCount = 0;
+       data.term.groups.forEach(g => {
+         addInsuredGroup();
+         const groupDiv = document.getElementById('ig-' + insuredGroupCount);
+         if(g.insuredName) { groupDiv.querySelector('[data-insured-name]').value = g.insuredName; fieldsFilled++; }
+         
+         const policiesId = 'ig-policies-' + insuredGroupCount;
+         document.getElementById(policiesId).innerHTML = ''; // clear the default one
+         if (g.policies && g.policies.length > 0) {
+           g.policies.forEach(p => {
+             addTermPolicy(policiesId);
+             const row = document.getElementById('tp-' + termPolicyCount);
+             if(p.name) { row.querySelector('[data-f="name"]').value = p.name; fieldsFilled++; }
+             if(p.sum) { row.querySelector('[data-f="sum"]').value = p.sum; fieldsFilled++; }
+             if(p.cover) { row.querySelector('[data-f="cover"]').value = p.cover; fieldsFilled++; }
+             if(p.premium) { row.querySelector('[data-f="premium"]').value = p.premium; fieldsFilled++; }
+           });
+         }
+       });
     }
 
-    if (fieldsFilled > 0) {
-      alert(`PDF parsed successfully! Autofilled ${fieldsFilled} fields.`);
-    } else {
-      alert('Could not find standard fields in this PDF. Please enter details manually.');
-    }
+    alert(`AI parsed PDF successfully! Autofilled ${fieldsFilled} fields.`);
 
   } catch (err) {
     console.error(err);
-    alert('Error parsing PDF. Please make sure it is a valid text-based PDF file.');
+    alert('Error parsing PDF: ' + err.message);
   } finally {
     btn.innerHTML = originalText;
     btn.style.opacity = '1';
