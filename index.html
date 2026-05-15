@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Insurance Proposal Builder</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -472,6 +473,19 @@
 
   <div id="form-section">
 
+    <div class="card" style="margin-bottom:28px; background: linear-gradient(135deg, #0d2a5e 0%, #1558d6 100%); color: white; border: none;">
+      <div class="card-body" style="padding:22px 28px; display:flex; align-items:center; justify-content:space-between; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <h3 style="font-family:'Cormorant Garamond',serif; font-size:24px; margin-bottom:4px; font-weight: 600;">Auto-fill from PDF</h3>
+          <p style="font-size:14px; opacity:0.8; margin:0;">Upload an existing policy document to automatically fill the details below.</p>
+        </div>
+        <div>
+          <input type="file" id="pdf-upload" accept="application/pdf" style="display:none;" onchange="handlePDFUpload(event)"/>
+          <button class="add-btn" style="background:white; color:var(--blue); border:none; padding:12px 24px; font-weight:600;" onclick="document.getElementById('pdf-upload').click()" id="pdf-upload-btn">📄 Upload PDF</button>
+        </div>
+      </div>
+    </div>
+
     <div class="section-label">Step 1 — Proposer</div>
     <div class="card" style="margin-bottom:28px;">
       <div class="card-body" style="padding:22px 28px;">
@@ -609,6 +623,107 @@
 <script>
 let clientCount=0, baseCount=0, topupCount=0, termCount=0;
 let selectedTypes={medical:false,term:false};
+
+async function handlePDFUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const btn = document.getElementById('pdf-upload-btn');
+  const originalText = btn.innerHTML;
+  btn.innerHTML = '⏳ Parsing...';
+  btn.style.opacity = '0.7';
+  btn.disabled = true;
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdfjsLib = window['pdfjs-dist/build/pdf'];
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+    const pdf = await loadingTask.promise;
+    
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map(item => item.str).join(' ');
+      fullText += pageText + ' ';
+    }
+
+    // Clean text for better matching
+    const cleanText = fullText.replace(/\s+/g, ' ');
+
+    let fieldsFilled = 0;
+
+    // Proposer Name Match
+    const proposerMatch = cleanText.match(/(?:Name of Proposer|Proposer Name|Insured Name|Name of Insured|Customer Name)[\s:]+([A-Za-z\s]{3,40})/i);
+    if (proposerMatch && proposerMatch[1]) {
+        document.getElementById('proposer-name').value = proposerMatch[1].trim();
+        const clientNameInput = document.querySelector('.client-card input[data-f="name"]');
+        if (clientNameInput && !clientNameInput.value) clientNameInput.value = proposerMatch[1].trim();
+        fieldsFilled++;
+    }
+    
+    // DOB Match
+    const dobMatch = cleanText.match(/(?:Date of Birth|DOB)[\s:]*(\d{2}[-/.]\d{2}[-/.]\d{4})/i);
+    if (dobMatch) {
+       const c = document.querySelector('.client-card input[data-f="dob"]');
+       if (c) {
+          const dStr = dobMatch[1].replace(/\./g, '/').replace(/-/g, '/');
+          const parts = dStr.split('/');
+          if (parts.length === 3) {
+             c.value = `${parts[2]}-${parts[1]}-${parts[0]}`;
+             fieldsFilled++;
+          }
+       }
+    }
+    
+    // Premium Match
+    const premiumMatch = cleanText.match(/(?:Gross Premium|Total Premium|Premium Amount|Premium|Total Payable)[\s:]*(?:Rs\.?|INR|₹)?[\s]*([\d,]+(?:\.\d{2})?)/i);
+    if (premiumMatch) {
+       const inputs = document.querySelectorAll('input[data-f="premium"]');
+       if(inputs.length > 0) {
+           inputs[0].value = premiumMatch[1].trim();
+           fieldsFilled++;
+       }
+    }
+    
+    // Sum Assured Match
+    const sumMatch = cleanText.match(/(?:Sum Assured|Base Cover|Coverage)[\s:]*(?:Rs\.?|INR|₹)?[\s]*([\d,]+(?:\.\d{2})?)/i);
+    if (sumMatch) {
+       const inputs = document.querySelectorAll('input[data-f="sum"]');
+       if(inputs.length > 0) {
+           inputs[0].value = sumMatch[1].trim();
+           fieldsFilled++;
+       }
+    }
+
+    // Policy Name Match
+    const policyMatch = cleanText.match(/(?:Product Name|Plan Name|Policy Name)[\s:]+([A-Za-z0-9\s\-]+(Policy|Plan|Protect|Health|Life|Insurance))/i);
+    if (policyMatch && policyMatch[1]) {
+       const policyNameInput = document.querySelector('.policy-row input[data-f="name"]');
+       if (policyNameInput) {
+           policyNameInput.value = policyMatch[1].trim();
+           fieldsFilled++;
+       }
+    }
+
+    if (fieldsFilled > 0) {
+      alert(`PDF parsed successfully! Autofilled ${fieldsFilled} fields.`);
+    } else {
+      alert('Could not find standard fields in this PDF. Please enter details manually.');
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert('Error parsing PDF. Please make sure it is a valid text-based PDF file.');
+  } finally {
+    btn.innerHTML = originalText;
+    btn.style.opacity = '1';
+    btn.disabled = false;
+    event.target.value = '';
+  }
+}
 
 document.getElementById('hdate').textContent = new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 addClient(); addPolicy('base'); addPolicy('topup');
