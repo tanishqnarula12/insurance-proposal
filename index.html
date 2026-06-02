@@ -26,6 +26,8 @@
     --medical-light: #ddf0fb;
     --term: #1558d6;
     --term-light: #ddeeff;
+    --accidental: #10b981;
+    --accidental-light: #d1fae5;
     --topup: #6366f1;
     --topup-light: #ede9fe;
     --danger: #dc2626;
@@ -82,6 +84,8 @@
   .type-btn.active-medical .t-name { color: var(--medical); }
   .type-btn.active-term { border-color: var(--term); background: var(--term-light); }
   .type-btn.active-term .t-name { color: var(--term); }
+  .type-btn.active-accidental { border-color: var(--accidental); background: var(--accidental-light); }
+  .type-btn.active-accidental .t-name { color: var(--accidental); }
   .sub-tabs { display: flex; background: var(--blue-light); border-radius: 10px; padding: 4px; width: fit-content; margin-bottom: 22px; }
   .sub-tab { padding: 8px 22px; border-radius: 7px; border: none; background: none; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: var(--slate); cursor: pointer; transition: all .2s; }
   .sub-tab.active { background: var(--white); color: var(--ink); box-shadow: 0 2px 8px rgba(13,42,94,.12); }
@@ -92,6 +96,7 @@
   .policy-row { background: var(--white); border: 1.5px solid var(--line); border-radius: var(--radius); padding: 20px 24px; margin-bottom: 12px; position: relative; }
   .ms { border-left: 4px solid var(--medical); }
   .ts { border-left: 4px solid var(--term); }
+  .as { border-left: 4px solid var(--accidental); }
   .gs { border-left: 4px solid var(--topup); }
   .add-btn { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border: 1.5px dashed var(--line); background: none; border-radius: 8px; font-family: 'DM Sans', sans-serif; font-size: 13px; color: var(--slate); cursor: pointer; transition: all .2s; font-weight: 500; }
   .add-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-light); }
@@ -510,6 +515,11 @@
         <span class="t-name">Term</span>
         <div class="t-desc">Life coverage with defined policy term</div>
       </button>
+      <button class="type-btn" id="btn-accidental" onclick="toggleType('accidental')">
+        <div class="t-icon">☂️</div>
+        <span class="t-name">Accidental</span>
+        <div class="t-desc">Accident and Disability Cover</div>
+      </button>
     </div>
 
     <div class="section-label">Step 3 — Client Details</div>
@@ -585,6 +595,24 @@
       </div>
     </div>
 
+    <div id="accidental-section" style="display:none;">
+      <div class="section-label" id="accidental-step-lbl">Step 4 — Accidental Insurance</div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-icon" style="background:var(--accidental-light);">☂️</div>
+            <div class="card-title">Accidental Insurance</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="accidental-panel">
+            <div id="accidental-policies"></div>
+            <button class="add-btn" onclick="addPolicy('accidental')">＋ Add Base Policy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="gen-wrap">
       <button class="gen-btn" onclick="generate()">📋 Generate Proposal</button>
     </div>
@@ -621,8 +649,8 @@
 </div>
 
 <script>
-let clientCount=0, baseCount=0, topupCount=0, termCount=0;
-let selectedTypes={medical:false,term:false};
+let clientCount=0, baseCount=0, topupCount=0, termCount=0, accidentalCount=0;
+let selectedTypes={medical:false,term:false,accidental:false};
 
 async function handlePDFUpload(event) {
   const file = event.target.files[0];
@@ -770,9 +798,17 @@ function toggleType(t){
   selectedTypes[t]=!selectedTypes[t];
   document.getElementById('btn-'+t).className='type-btn'+(selectedTypes[t]?' active-'+t:'');
   document.getElementById(t+'-section').style.display=selectedTypes[t]?'block':'none';
-  if(t==='term'){
-    document.getElementById('term-step-lbl').textContent=(selectedTypes.medical?'Step 5':'Step 4')+' — Term Insurance';
-    if(selectedTypes[t] && insuredGroupCount===0) addInsuredGroup();
+
+  let step = 4;
+  if(selectedTypes.medical) step++;
+  if(selectedTypes.term) {
+    document.getElementById('term-step-lbl').textContent='Step '+step+' — Term Insurance';
+    if(t==='term' && insuredGroupCount===0) addInsuredGroup();
+    step++;
+  }
+  if(selectedTypes.accidental) {
+    document.getElementById('accidental-step-lbl').textContent='Step '+step+' — Accidental Insurance';
+    if(t==='accidental' && accidentalCount===0) addPolicy('accidental');
   }
 }
 
@@ -799,10 +835,45 @@ function addClient(){
     ${clientCount>1?`<button class="rm-btn" style="top:50px;right:20px" onclick="document.getElementById('${id}').remove()">✕</button>`:''}
     <div class="form-grid">
       <div class="form-group"><label>Full Name</label><input type="text" placeholder="e.g. Rahul Sharma" data-f="name"/></div>
+      <div class="form-group"><label>Relation</label>
+        <select data-f="relation">
+          <option value="">— Select —</option>
+          <option>Self</option>
+          <option>Spouse</option>
+          <option>Son</option>
+          <option>Daughter</option>
+          <option>Father</option>
+          <option>Mother</option>
+          <option>Brother</option>
+          <option>Sister</option>
+          <option>Grandfather</option>
+          <option>Grandmother</option>
+          <option>Grandson</option>
+          <option>Granddaughter</option>
+          <option>Father-in-law</option>
+          <option>Mother-in-law</option>
+          <option>Son-in-law</option>
+          <option>Daughter-in-law</option>
+          <option>Nephew</option>
+          <option>Niece</option>
+          <option>Uncle</option>
+          <option>Aunt</option>
+          <option>Cousin</option>
+          <option>Legal Guardian</option>
+          <option>Relative</option>
+          <option>Friend</option>
+          <option>Business Partner</option>
+          <option>Employee</option>
+          <option>Employer</option>
+          <option>Trustee</option>
+          <option>Other(specify please)</option>
+        </select>
+      </div>
       <div class="form-group"><label>Date of Birth</label><input type="date" data-f="dob"/></div>
       <div class="form-group"><label>Tobacco Consumption</label><select data-f="tobacco"><option value="">— Select —</option><option>No</option><option>Yes</option></select></div>
       <div class="form-group"><label>Alcohol Consumption</label><select data-f="alcohol"><option value="">— Select —</option><option>No</option><option>Yes</option></select></div>
-      <div class="form-group"><label>Pre-existing Disease</label><select data-f="ped"><option value="">— Select —</option><option>No</option><option>Yes</option></select></div>
+      <div class="form-group"><label>Pre-existing Disease</label><select data-f="ped" onchange="const s=this.parentElement.nextElementSibling; if(this.value==='Yes') s.style.display='flex'; else s.style.display='none';"><option value="">— Select —</option><option>No</option><option>Yes</option></select></div>
+      <div class="form-group" style="display:none;"><label>Please Specify</label><input type="text" placeholder="e.g. Diabetes" data-f="pedSpecify"/></div>
     </div>`;
   document.getElementById('clients-wrap').appendChild(div);
 }
@@ -811,11 +882,12 @@ function addPolicy(type){
   let ctr, containerId, strip, innerHtml, label;
   if(type==='base'){baseCount++;ctr=baseCount;containerId='base-policies';strip='ms';label='Base';}
   else if(type==='topup'){topupCount++;ctr=topupCount;containerId='topup-policies';strip='gs';label='Top-Up';}
+  else if(type==='accidental'){accidentalCount++;ctr=accidentalCount;containerId='accidental-policies';strip='as';label='Base';}
   else{termCount++;ctr=termCount;containerId='base-policies';strip='ms';label='Base';} // unused fallback
   const id=type+'-'+ctr;
-  if(type==='base') innerHtml=`
+  if(type==='base' || type==='accidental') innerHtml=`
     <div class="form-grid">
-      <div class="form-group span-2"><label>Policy Name</label><input type="text" placeholder="e.g. Star Health Comprehensive" data-f="name"/></div>
+      <div class="form-group span-2"><label>Company and Policy Name</label><input type="text" placeholder="e.g. Star Health Comprehensive" data-f="name"/></div>
       <div class="form-group"><label>Sum Assured (₹)</label><input type="text" placeholder="e.g. 5,00,000" data-f="sum"/></div>
       <div class="form-group"><label>Premium Amount (₹/yr)</label><input type="text" placeholder="e.g. 12,500" data-f="premium"/></div>
       <div class="form-group span-2"><label>Riders (optional)</label><input type="text" placeholder="e.g. Critical Illness, Personal Accident, Maternity" data-f="riders"/></div>
@@ -880,7 +952,7 @@ function addTermPolicy(containerId) {
     ${ctr > 1 ? `<button class="rm-btn" style="top:16px;right:20px" onclick="document.getElementById('${id}').remove()">✕</button>` : ''}
     <div class="section-label" style="margin-bottom:14px">Policy ${ctr}</div>
     <div class="form-grid">
-      <div class="form-group span-2"><label>Policy Name</label><input type="text" placeholder="e.g. HDFC Click 2 Protect" data-f="name"/></div>
+      <div class="form-group span-2"><label>Company and Policy Name</label><input type="text" placeholder="e.g. HDFC Click 2 Protect" data-f="name"/></div>
       <div class="form-group"><label>Sum Assured (₹)</label><input type="text" placeholder="e.g. 1,00,00,000" data-f="sum"/></div>
       <div class="form-group"><label>Cover Till Age (yrs)</label><input type="number" placeholder="e.g. 65" min="18" max="99" data-f="cover"/></div>
       <div class="form-group"><label>Premium Amount (₹/yr)</label><input type="text" placeholder="e.g. 18,000" data-f="premium"/></div>
@@ -893,12 +965,13 @@ function fmt(v){ return v||'—'; }
 function badge(v){ if(!v) return '<span class="badge" style="background:var(--bg);color:var(--mist)">—</span>'; return v==='Yes'?`<span class="badge by">⚠ Yes</span>`:`<span class="badge bn">✓ No</span>`; }
 
 function generate(){
-  if(!selectedTypes.medical&&!selectedTypes.term){ alert('Please select at least one proposal type.'); return; }
+  if(!selectedTypes.medical&&!selectedTypes.term&&!selectedTypes.accidental){ alert('Please select at least one proposal type.'); return; }
   const clients=[...document.getElementById('clients-wrap').children].map(el=>getFields(el));
   const base=[...document.getElementById('base-policies').children].map(el=>getFields(el));
   const topup=[...document.getElementById('topup-policies').children].map(el=>getFields(el));
-  const term=[...document.getElementById('term-policies')?.children||[]].map(el=>getFields(el));
-  const types=[selectedTypes.medical&&'Medical',selectedTypes.term&&'Term'].filter(Boolean).join(' + ');
+  const term=[...document.getElementById('term-groups')?.children||[]].map(el=>getFields(el));
+  const accidental = document.getElementById('accidental-policies') ? [...document.getElementById('accidental-policies').children].map(el=>getFields(el)) : [];
+  const types=[selectedTypes.medical&&'Medical',selectedTypes.term&&'Term',selectedTypes.accidental&&'Accidental'].filter(Boolean).join(' + ');
   const d=new Date().toLocaleDateString('en-IN',{year:'numeric',month:'long',day:'numeric'});
   const proposer=document.getElementById('proposer-name').value.trim();
 
@@ -913,14 +986,15 @@ function generate(){
   // Client Details
   h+=`<div class="psec-title">👤 Client Details</div>`;
   h+=`<div class="ptable-wrap"><table class="ptable"><thead><tr>
-    <th>#</th><th>Name</th><th>Date of Birth</th><th>Tobacco</th><th>Alcohol</th><th>Pre-existing Disease</th>
+    <th>#</th><th>Name</th><th>Relation</th><th>Date of Birth</th><th>Tobacco</th><th>Alcohol</th><th>Pre-existing Disease</th>
   </tr></thead><tbody>`;
   clients.forEach((c,i)=>{
     h+=`<tr>
       <td>${i+1}</td>
       <td style="font-weight:500;color:#0d2a5e">${fmt(c.name)}</td>
+      <td style="font-weight:500">${fmt(c.relation)}</td>
       <td>${c.dob?new Date(c.dob).toLocaleDateString('en-IN'):'—'}</td>
-      <td>${badge(c.tobacco)}</td><td>${badge(c.alcohol)}</td><td>${badge(c.ped)}</td>
+      <td>${badge(c.tobacco)}</td><td>${badge(c.alcohol)}</td><td>${badge(c.ped)}${c.ped==='Yes'&&c.pedSpecify?'<br><small style="color:var(--mist)">('+fmt(c.pedSpecify)+')</small>':''}</td>
     </tr>`;
   });
   h+=`</tbody></table></div>`;
@@ -943,7 +1017,7 @@ function generate(){
     if(vb.length){
       h+=`<div class="psub-label psub-base">Base Cover</div>`;
       const hasRiders = vb.some(p=>p.riders);
-      h+=`<div class="ptable-wrap"><table class="ptable"><thead><tr><th>#</th><th>Policy Name</th><th>Sum Assured</th><th>Premium (p.a.)</th>${hasRiders?'<th>Riders</th>':''}</tr></thead><tbody>`;
+      h+=`<div class="ptable-wrap"><table class="ptable"><thead><tr><th>#</th><th>Company and Policy Name</th><th>Sum Assured</th><th>Premium (p.a.)</th>${hasRiders?'<th>Riders</th>':''}</tr></thead><tbody>`;
       vb.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td style="font-weight:500">${fmt(p.name)}</td><td>₹ ${fmt(p.sum)}</td><td>₹ ${fmt(p.premium)}</td>${hasRiders?`<td style="font-size:12px;color:var(--slate)">${p.riders||'—'}</td>`:''}</tr>`; });
       h+=`</tbody></table></div>`;
     }
@@ -971,11 +1045,25 @@ function generate(){
         <div style="flex:1;height:1px;background:var(--line);"></div>
       </div>`;
       if(policies.length){
-        h+=`<div class="ptable-wrap"><table class="ptable"><thead><tr><th>#</th><th>Policy Name</th><th>Sum Assured</th><th>Cover Till Age</th><th>Premium (p.a.)</th></tr></thead><tbody>`;
+        h+=`<div class="ptable-wrap"><table class="ptable"><thead><tr><th>#</th><th>Company and Policy Name</th><th>Sum Assured</th><th>Cover Till Age</th><th>Premium (p.a.)</th></tr></thead><tbody>`;
         policies.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td style="font-weight:500">${fmt(p.name)}</td><td>₹ ${fmt(p.sum)}</td><td>${fmt(p.cover)} yrs</td><td>₹ ${fmt(p.premium)}</td></tr>`; });
         h+=`</tbody></table></div>`;
       }
     });
+  }
+
+  // Accidental
+  if(selectedTypes.accidental){
+    h+=`<div class="psec-title">☂️ Accidental Insurance</div>`;
+    const va=accidental.filter(p=>p.name||p.sum||p.premium);
+    if(va.length){
+      const hasRiders = va.some(p=>p.riders);
+      h+=`<div class="ptable-wrap"><table class="ptable"><thead><tr><th>#</th><th>Company and Policy Name</th><th>Sum Assured</th><th>Premium (p.a.)</th>${hasRiders?'<th>Riders</th>':''}</tr></thead><tbody>`;
+      va.forEach((p,i)=>{
+        h+=`<tr><td>${i+1}</td><td style="font-weight:500;color:#0d2a5e">${fmt(p.name)}</td><td>₹ ${fmt(p.sum)}</td><td>₹ ${fmt(p.premium)}</td>${hasRiders?`<td style="font-size:12px;color:var(--slate)">${fmt(p.riders)}</td>`:''}</tr>`;
+      });
+      h+=`</tbody></table></div>`;
+    }
   }
 
   // Footer
@@ -1007,7 +1095,7 @@ function saveToGoogleSheets({ clients, base, topup, proposer, types, d }) {
     : '';
 
   // Compute totals
-  let totalMedical = 0, totalTerm = 0;
+  let totalMedical = 0, totalTerm = 0, totalAccidental = 0;
 
   const vb = base.filter(p => p.name || p.sum || p.premium);
   const vt = topup.filter(p => p.deductible || p.sum || p.premium);
