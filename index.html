@@ -894,6 +894,8 @@ function addPolicy(type){
     </div>`;
   else innerHtml=`
     <div class="form-grid">
+      <div class="form-group"><label>Company</label><input type="text" placeholder="e.g. ICICI Prudential" data-f="company"/></div>
+      <div class="form-group"><label>Policy Name</label><input type="text" placeholder="e.g. Super Top-Up" data-f="name"/></div>
       <div class="form-group"><label>Deductible (₹)</label><input type="text" placeholder="e.g. 3,00,000" data-f="deductible"/></div>
       <div class="form-group"><label>Sum Assured (₹)</label><input type="text" placeholder="e.g. 10,00,000" data-f="sum"/></div>
       <div class="form-group"><label>Premium Amount (₹/yr)</label><input type="text" placeholder="e.g. 4,800" data-f="premium"/></div>
@@ -1021,11 +1023,11 @@ function generate(){
       vb.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td style="font-weight:500">${fmt(p.name)}</td><td>₹ ${fmt(p.sum)}</td><td>₹ ${fmt(p.premium)}</td>${hasRiders?`<td style="font-size:12px;color:var(--slate)">${p.riders||'—'}</td>`:''}</tr>`; });
       h+=`</tbody></table></div>`;
     }
-    const vt=topup.filter(p=>p.deductible||p.sum||p.premium);
+    const vt=topup.filter(p=>p.company||p.name||p.deductible||p.sum||p.premium);
     if(vt.length){
       h+=`<div class="psub-label psub-topup" style="margin-top:18px">Top-Up Cover</div>`;
-      h+=`<div class="ptable-wrap"><table class="ptable"><thead><tr><th>#</th><th>Deductible</th><th>Sum Assured</th><th>Premium (p.a.)</th></tr></thead><tbody>`;
-      vt.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td>₹ ${fmt(p.deductible)}</td><td>₹ ${fmt(p.sum)}</td><td>₹ ${fmt(p.premium)}</td></tr>`; });
+      h+=`<div class="ptable-wrap"><table class="ptable"><thead><tr><th>#</th><th>Company</th><th>Policy Name</th><th>Deductible</th><th>Sum Assured</th><th>Premium (p.a.)</th></tr></thead><tbody>`;
+      vt.forEach((p,i)=>{ h+=`<tr><td>${i+1}</td><td style="font-weight:500">${fmt(p.company)}</td><td style="font-weight:500">${fmt(p.name)}</td><td>₹ ${fmt(p.deductible)}</td><td>₹ ${fmt(p.sum)}</td><td>₹ ${fmt(p.premium)}</td></tr>`; });
       h+=`</tbody></table></div>`;
     }
   }
@@ -1083,10 +1085,10 @@ function generate(){
   document.title = pdfName;
 
   // ── Google Sheets Sync ──
-  saveToGoogleSheets({ clients, base, topup, proposer, types, d });
+  saveToGoogleSheets({ clients, base, topup, accidental, proposer, types, d });
 }
 
-function saveToGoogleSheets({ clients, base, topup, proposer, types, d }) {
+function saveToGoogleSheets({ clients, base, topup, accidental, proposer, types, d }) {
   const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzczXKpFT-dfem3k_K9owUSEjbiMlVcrvqcuVzbdfu3g3VRdnw9XTvJhkjliHsscXo/exec";
 
   const isPort = document.getElementById('port-toggle').checked;
@@ -1098,9 +1100,12 @@ function saveToGoogleSheets({ clients, base, topup, proposer, types, d }) {
   let totalMedical = 0, totalTerm = 0, totalAccidental = 0;
 
   const vb = base.filter(p => p.name || p.sum || p.premium);
-  const vt = topup.filter(p => p.deductible || p.sum || p.premium);
+  const vt = topup.filter(p => p.company || p.name || p.deductible || p.sum || p.premium);
+  const va = accidental.filter(p => p.name || p.sum || p.premium);
+
   vb.forEach(p => { totalMedical += parseFloat((p.premium || '0').replace(/,/g, '')) || 0; });
   vt.forEach(p => { totalMedical += parseFloat((p.premium || '0').replace(/,/g, '')) || 0; });
+  va.forEach(p => { totalAccidental += parseFloat((p.premium || '0').replace(/,/g, '')) || 0; });
 
   // Term groups
   const termGroups = [];
@@ -1116,7 +1121,7 @@ function saveToGoogleSheets({ clients, base, topup, proposer, types, d }) {
     });
   }
 
-  const grandTotal = totalMedical + totalTerm;
+  const grandTotal = totalMedical + totalTerm + totalAccidental;
 
   // Build rows — one row per client × policy combination
   const rows = [];
@@ -1126,7 +1131,8 @@ function saveToGoogleSheets({ clients, base, topup, proposer, types, d }) {
   const basePolicies = vb.length;
   const topupPolicies = vt.length;
   const totalTermPolicies = termGroups.reduce((acc, g) => acc + Math.max(g.policies.length, 1), 0);
-  const maxRows = Math.max(clientRows, basePolicies, topupPolicies, totalTermPolicies, 1);
+  const accidentalPolicies = va.length;
+  const maxRows = Math.max(clientRows, basePolicies, topupPolicies, totalTermPolicies, accidentalPolicies, 1);
 
   // Flatten term policies
   const termFlat = [];
@@ -1143,6 +1149,7 @@ function saveToGoogleSheets({ clients, base, topup, proposer, types, d }) {
     const bp = vb[i] || {};
     const tp = vt[i] || {};
     const tr = termFlat[i] || {};
+    const ap = va[i] || {};
 
     rows.push([
       i === 0 ? d : '',                                          // Date
@@ -1159,6 +1166,8 @@ function saveToGoogleSheets({ clients, base, topup, proposer, types, d }) {
       bp.sum || '',                                              // Base Sum Assured
       bp.premium || '',                                          // Base Premium
       bp.riders || '',                                           // Base Riders
+      tp.company || '',                                          // TopUp Company
+      tp.name || '',                                             // TopUp Policy Name
       tp.deductible || '',                                       // TopUp Deductible
       tp.sum || '',                                              // TopUp Sum Assured
       tp.premium || '',                                          // TopUp Premium
@@ -1167,8 +1176,13 @@ function saveToGoogleSheets({ clients, base, topup, proposer, types, d }) {
       tr.sum || '',                                              // Term Sum Assured
       tr.cover || '',                                            // Term Cover Till Age
       tr.premium || '',                                          // Term Premium
+      ap.name || '',                                             // Accidental Policy Name
+      ap.sum || '',                                              // Accidental Sum Assured
+      ap.premium || '',                                          // Accidental Premium
+      ap.riders || '',                                           // Accidental Riders
       i === 0 ? (totalMedical > 0 ? '₹ ' + totalMedical.toLocaleString('en-IN') : '') : '', // Total Medical Premium
       i === 0 ? (totalTerm > 0 ? '₹ ' + totalTerm.toLocaleString('en-IN') : '') : '',       // Total Term Premium
+      i === 0 ? (totalAccidental > 0 ? '₹ ' + totalAccidental.toLocaleString('en-IN') : '') : '', // Total Accidental Premium
       i === 0 ? (grandTotal > 0 ? '₹ ' + grandTotal.toLocaleString('en-IN') : '') : ''      // Grand Total Premium
     ]);
   }
