@@ -1152,38 +1152,38 @@ function saveToGoogleSheets({ clients, base, topup, accidental, proposer, types,
     const ap = va[i] || {};
 
     rows.push([
-      i === 0 ? d : '',                                          // Date
-      i === 0 ? proposer : '',                                   // Proposer Name
-      i === 0 ? types : '',                                      // Proposal Type
-      c.name || '',                                              // Client Name
-      c.dob ? new Date(c.dob).toLocaleDateString('en-IN') : '', // Date of Birth
-      c.tobacco || '',                                           // Tobacco
-      c.alcohol || '',                                           // Alcohol
-      c.ped || '',                                               // Pre-existing Disease
-      i === 0 && selectedTypes.medical ? (isPort ? 'Port' : 'New') : '', // Medical Type
-      i === 0 && selectedTypes.medical && isPort ? portDate : '', // Port Date
-      bp.name || '',                                             // Base Policy Name
-      bp.sum || '',                                              // Base Sum Assured
-      bp.premium || '',                                          // Base Premium
-      bp.riders || '',                                           // Base Riders
-      tp.company || '',                                          // TopUp Company
-      tp.name || '',                                             // TopUp Policy Name
-      tp.deductible || '',                                       // TopUp Deductible
-      tp.sum || '',                                              // TopUp Sum Assured
-      tp.premium || '',                                          // TopUp Premium
-      tr.insured || '',                                          // Insured Person
-      tr.name || '',                                             // Term Policy Name
-      tr.sum || '',                                              // Term Sum Assured
-      tr.cover || '',                                            // Term Cover Till Age
-      tr.premium || '',                                          // Term Premium
-      ap.name || '',                                             // Accidental Policy Name
-      ap.sum || '',                                              // Accidental Sum Assured
-      ap.premium || '',                                          // Accidental Premium
-      ap.riders || '',                                           // Accidental Riders
-      i === 0 ? (totalMedical > 0 ? '₹ ' + totalMedical.toLocaleString('en-IN') : '') : '', // Total Medical Premium
-      i === 0 ? (totalTerm > 0 ? '₹ ' + totalTerm.toLocaleString('en-IN') : '') : '',       // Total Term Premium
-      i === 0 ? (totalAccidental > 0 ? '₹ ' + totalAccidental.toLocaleString('en-IN') : '') : '', // Total Accidental Premium
-      i === 0 ? (grandTotal > 0 ? '₹ ' + grandTotal.toLocaleString('en-IN') : '') : ''      // Grand Total Premium
+      i === 0 ? d : '',                                          // 1. Date
+      i === 0 ? proposer : '',                                   // 2. Proposer Name
+      i === 0 ? types : '',                                      // 3. Proposal Type
+      c.name || '',                                              // 4. Client Name
+      c.relation || '',                                          // 5. Relation
+      c.dob ? new Date(c.dob).toLocaleDateString('en-IN') : '',  // 6. Date of Birth
+      c.tobacco || '',                                           // 7. Tobacco
+      c.alcohol || '',                                           // 8. Alcohol
+      c.ped || '',                                               // 9. Pre-existing Disease
+      c.pedSpecify || '',                                        // 10. Disease Name
+      i === 0 && selectedTypes.medical ? (isPort ? 'Port' : 'New') : '', // 11. Medical Type (Port/New)
+      i === 0 && selectedTypes.medical && isPort ? portDate : '', // 12. Port Date
+      bp.name || '',                                             // 13. Base Policy Name
+      bp.sum || '',                                              // 14. Base Sum Assured
+      bp.premium || '',                                          // 15. Base Premium
+      bp.riders || '',                                           // 16. Base Riders
+      tp.deductible || '',                                       // 17. TopUp Deductible
+      tp.sum || '',                                              // 18. TopUp Sum Assured
+      tp.premium || '',                                          // 19. TopUp Premium
+      tr.insured || '',                                          // 20. Insured Person
+      tr.name || '',                                             // 21. Term Policy Name
+      tr.sum || '',                                              // 22. Term Sum Assured
+      tr.cover || '',                                            // 23. Term Cover Till Age
+      tr.premium || '',                                          // 24. Term Premium
+      ap.name || '',                                             // 25. Accidental Policy Name
+      ap.sum || '',                                              // 26. Accidental Sum Assured
+      ap.premium || '',                                          // 27. Accidental Premium
+      ap.riders || '',                                           // 28. Accidental Riders
+      i === 0 ? (totalMedical > 0 ? '₹ ' + totalMedical.toLocaleString('en-IN') : '') : '', // 29. Total Medical Premium
+      i === 0 ? (totalTerm > 0 ? '₹ ' + totalTerm.toLocaleString('en-IN') : '') : '',       // 30. Total Term Premium
+      i === 0 ? (totalAccidental > 0 ? '₹ ' + totalAccidental.toLocaleString('en-IN') : '') : '', // 31. Total Accidental Premium
+      i === 0 ? (grandTotal > 0 ? '₹ ' + grandTotal.toLocaleString('en-IN') : '') : ''      // 32. Grand Total Premium
     ]);
   }
 
